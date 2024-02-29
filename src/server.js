@@ -1,21 +1,25 @@
 import express from "express";
-const app = express();
 import dotenv from 'dotenv';
 import morgan from "morgan";
+import movieRouters from "./routes/movies.router.js";
+import userRouters from "./routes/user.router.js"
 dotenv.config();
 
-//middlewares
+const app = express();
 
+//middlewares
 app.use(express.json());
 app.use(morgan('dev'));
 app.use(express.urlencoded({ extended: false }));
-// app.use(cookieParser());
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', ''); // update to match the domain you will make the request from
-  res.header('Access-Control-Allow-Credentials', 'true');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
-  next();
+
+
+app.use(movieRouters);
+app.use(userRouters)
+// Manejador de errores
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).send('Algo salió mal!');
 });
 
-export default app
+
+export default app;
