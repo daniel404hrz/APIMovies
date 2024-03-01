@@ -10,46 +10,58 @@ import {
 } from "firebase/database";
 
 export const createRentals = async (req, res) => {
-  const { movieID, userID } = req.body;
+    const { movieID, userID } = req.body;
 
-  try {
-    const userRef = ref(db, `usuarios/${userID}`);
-    const movieRef = ref(db, `peliculas/${movieID}`);
+    try {
+        const userRef = ref(db, `usuarios/${userID}`);
+        const movieRef = ref(db, `peliculas/${movieID}`);
 
-    const rentalRef = push(ref(db, "alquileres"));
-    const rentalId = rentalRef.key;
+        const rentalRef = push(ref(db, "alquileres"));
+        const rentalId = rentalRef.key;
 
-    const movieSnapshot = await get(movieRef);
-    const movieDetails = {
-      movieID: movieSnapshot.key,
-      title: movieSnapshot.val().titulo,
-    };
+        const movieSnapshot = await get(movieRef);
+        const movieDetails = {
+            movieID: movieSnapshot.key,
+            title: movieSnapshot.val().titulo,
+        };
 
-    // Calcula la fecha de devolución (hoy + días de alquiler)
-    const today = new Date();
-    const returnDate = new Date(today);
-    returnDate.setDate(today.getDate() + 3);
+        // Calcula la fecha de devolución (hoy + días de alquiler)
+        const today = new Date();
+        const returnDate = new Date(today);
+        returnDate.setDate(today.getDate() + 3);
 
-    await set(rentalRef, {
-      user: userRef.key,
-      movie: movieRef.key,
-      rentalDate: today.toISOString().split("T")[0],
-      returnDate: returnDate.toISOString().split("T")[0],
-      penalty: 0, // Inicialmente sin penalización
-      ...movieDetails,
-    });
+        // Guarda la información del alquiler
+        await set(rentalRef, {
+            user: userRef.key,
+            movie: movieRef.key,
+            rentalDate: today.toISOString().split("T")[0],
+            returnDate: returnDate.toISOString().split("T")[0],
+            penalty: 0, // Inicialmente sin penalización
+            ...movieDetails,
+        });
 
-    // Agrega el alquiler al array de alquileres en el nodo del usuario
-    await set(userRef, { alquileres: { [rentalId]: true } }, { merge: true });
+        // Obtiene la lista actual de alquileres del usuario y la actualiza
+        const userSnapshot = await get(userRef);
+        const userRentals = userSnapshot.val().alquileres || {};
+        console.log(userRentals);
+        userRentals[rentalId] = {
+            rentalDate: today.toISOString().split("T")[0],
+            returnDate: returnDate.toISOString().split("T")[0],
+            penalty: 0, // Inicialmente sin penalización
+            ...movieDetails,
+        };
 
-    console.log("Alquiler registrado exitosamente con ID:", rentalId);
-    res
-      .status(201)
-      .json({ mensaje: "Alquiler registrado exitosamente", rentalId });
-  } catch (error) {
-    console.error("Error al registrar el alquiler:", error.message);
-    res.status(500).json({ mensaje: "Error al registrar el alquiler" });
-  }
+        // Actualiza la lista de alquileres del usuario
+        await set(userRef, { ...userSnapshot.val(), alquileres: userRentals });
+
+        console.log("Alquiler registrado exitosamente con ID:", rentalId);
+        res
+            .status(201)
+            .json({ mensaje: "Alquiler registrado exitosamente", rentalId });
+    } catch (error) {
+        console.error("Error al registrar el alquiler:", error.message);
+        res.status(500).json({ mensaje: "Error al registrar el alquiler" });
+    }
 };
 export const getRentas = async (req, res) => {
   const moviesRef = ref(db, "alquileres");
@@ -89,7 +101,7 @@ export const delRenta = async (req, res) => {
     // Eliminar el alquiler de la lista general
     await remove(rentalRef);
 
-    return res.status(200).json({ mensaje: 'Alquiler eliminado exitosamente' });
+    return res.status(200).json({ mensaje: "Alquiler eliminado exitosamente" });
   } catch (error) {
     console.error("Error al procesar la solicitud:", error.message);
     res.status(500).json({ mensaje: "Error interno del servidor" });

@@ -2,7 +2,7 @@ import { auth } from "../db.js";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { db } from "../db.js";
 import {
-  getDatabase,
+  
   ref,
   push,
   set,
@@ -15,7 +15,15 @@ export const createUser = async (req, res) => {
   const { id, name,rol } = req.body;
   
   try {
-    const usersRef = ref(db, "usuarios");
+    const usersRef = ref(db, `usuarios/${id}`);
+
+    // Verifica si ya existe un usuario con el mismo ID
+    const existingUserSnapshot = await get(usersRef);
+
+    if (existingUserSnapshot.exists()) {
+      // El usuario ya está registrado, retorna un mensaje de error
+      return res.status(400).json({ mensaje: "El usuario ya está registrado" });
+    }
     set(usersRef, {
       [id]: {
         nombre: name,
@@ -79,3 +87,25 @@ export const delUser = async (req, res) => {
     res.status(500).json({ mensaje: "Error al eliminar el user." });
   }
 };
+export const getUserByID =async(req,res)=>{
+  try {
+    const { id } = req.params;
+
+    // Obtener la referencia al usuario en la base de datos
+    const userRef = ref(db, `usuarios/${id}`);
+    
+    // Obtener la información del usuario
+    const userSnapshot = await get(userRef);
+    const userData = userSnapshot.val();
+
+    if (!userData) {
+      return res.status(404).json({ mensaje: 'Usuario no encontrado' });
+    }
+
+    return res.status(200).json(userData);
+  } catch (error) {
+    console.error('Error al procesar la solicitud:', error.message);
+    res.status(500).json({ mensaje: 'Error interno del servidor' });
+  }
+
+}
