@@ -38,7 +38,7 @@ export const authMiddleware = async (req, res, next) => {
           error: "ERROR_ID_TOKEN",
         });
       }
-      console.log(dataToken);
+      
       // Obtén los detalles del usuario desde la base de datos de Firebase
       const userRef = ref(db, `usuarios/${dataToken.id}`);
       

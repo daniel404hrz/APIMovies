@@ -12,7 +12,7 @@ import {
 } from "firebase/database";
 
 export const createUser = async (req, res) => {
-  const { id, name } = req.body;
+  const { id, name,rol } = req.body;
   
   try {
     const usersRef = ref(db, "usuarios");

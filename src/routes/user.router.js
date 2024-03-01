@@ -4,6 +4,7 @@ import { authMiddleware } from "../middlewares/session.js";
 
 const router = Router();
 router.post("/user", createUser)
-router.get("/users", getUsers )
+router.get("/users",authMiddleware, getUsers )
+router.get("/user:id",authMiddleware,)
 router.delete("/user/:id",authMiddleware,delUser )
 export default router;
