@@ -1,30 +1,65 @@
 import { db } from "../db.js";
+import {
+  getDatabase,
+  ref,
+  push,
+  set,
+  get,
+  update,
+  remove,
+} from "firebase/database";
 
-export const createUser=async(req,res)=>{
-    const {movieID,userID}=req.body;
-    try {
-        
-        const movieRef = ref(db, `peliculas/${movieID}`);
+export const createPurchases = async (req, res) => {
+  const { movieID, userID } = req.body;
+
+  try {
     const userRef = ref(db, `usuarios/${userID}`);
+    const movieRef = ref(db, `peliculas/${movieID}`);
 
-    // Genera una nueva compra con la información proporcionada
-    const compraRef = ref(db, 'compras'); // Cambié el nombre de 'usuarios' a 'compras' para reflejar mejor la intención
-    const nuevaCompra = {
-      user: userRef,
-      movie: movieRef,
-      date: new Date().toISOString(), // Puedes ajustar cómo deseas almacenar la fecha
-    };
+    // Utiliza push para generar una clave única para cada compra
+    const compraRef = push(ref(db, "compras"));
+    const compraId = compraRef.key;
 
-    // Agrega la nueva compra a la base de datos
-    const compraSnapshot = await set(compraRef, nuevaCompra);
+    // Guarda solo la referencia (ID) en la base de datos
+    await set(compraRef, {
+      user: userRef.key, // Guarda solo el ID del usuario
+      movie: movieRef.key, // Guarda solo el ID de la película
+      date: new Date().toISOString().split("T")[0],
+    });
+    const movieSnapshot = await get(movieRef);
+    const movieDetails = {
+        movieID: movieSnapshot.key,
+        title: movieSnapshot.val().titulo
+      };
+  
+      // Actualiza el array de compras en el nodo del usuario
+      await set(userRef, { compras: { [compraId]: movieDetails } }, { merge: true });
 
-    // Obtén el ID de la nueva compra (opcional)
-    const id = compraSnapshot.key;
+    console.log("Compra registrada exitosamente con ID:", compraId);
+    res
+      .status(201)
+      .json({ mensaje: "Compra registrada exitosamente", compraId });
+  } catch (error) {
+    console.error("Error al registrar la compra:", error.message);
+    res.status(500).json({ mensaje: "Error al registrar la compra" });
+  }
+};
+export const getPurchases = async (req, res) => {
+  try {
+    const comprasRef = ref(db, "compras");
 
-    console.log('Compra registrada exitosamente con ID:', id);
-    res.status(201).json({ mensaje: 'Compra registrada exitosamente', compraId: id });
-      } catch (error) {
-        console.error('Error al registrar el usuario:', error.message);
-        res.status(500).json({ mensaje: 'Error al registrar el usuario' });
+    // Obtiene los datos de la referencia 'movies'
+    await get(comprasRef).then((snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        res.status(201).json(data);
+      } else {
+        console.log('No hay datos en la referencia "compras".');
+        res.status(201).json({});
       }
-}
+    });
+  } catch (error) {
+    console.error("Error al obtener los datos:", error.message);
+    res.status(500).json({ mensaje: "Error al obtener los datos" });
+  }
+};

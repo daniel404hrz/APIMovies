@@ -1,5 +1,4 @@
 import {
-  getDatabase,
   ref,
   push,
   set,
@@ -140,17 +139,14 @@ export const putLike = async (req, res) => {
 export const delMovies = async (req, res) => {
   const { id } = req.params;
 
-  const db = getDatabase();
-
-  // Referencia al post específico
   const postRef = ref(db, `/peliculas/${id}`);
 
   try {
-    // Intenta obtener el post antes de eliminarlo para verificar la propiedad 'uid'
+
     const snapshot = await get(postRef);
 
     if (snapshot.exists()) {
-      // Elimina el post de la lista general de posts
+    
       remove(postRef);
 
       res.status(200).json({ mensaje: "Post eliminado exitosamente." });
