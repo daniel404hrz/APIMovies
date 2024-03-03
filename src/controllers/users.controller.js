@@ -13,7 +13,7 @@ import {
 
 export const createUser = async (req, res) => {
   const { id, name,rol } = req.body;
-  
+  console.log(id, name,rol);
   try {
     const usersRef = ref(db, `usuarios/${id}`);
 
@@ -25,18 +25,20 @@ export const createUser = async (req, res) => {
       return res.status(400).json({ mensaje: "El usuario ya está registrado" });
     }
     set(usersRef, {
-      [id]: {
+
         nombre: name,
         compras: [],
         alquileres: [],
         rol:rol
-      },
+    
     });
+    const userSnapshot = await get(usersRef);
+    const userData = userSnapshot.val();
 
     console.log("Usuario registrado exitosamente con ID:", id);
     res
       .status(201)
-      .json({ mensaje: "Usuario registrado exitosamente", userId: id });
+      .json({ mensaje: "Usuario registrado exitosamente", id: id ,userData});
   } catch (error) {
     console.error("Error al registrar el usuario:", error.message);
     res.status(500).json({ mensaje: "Error al registrar el usuario" });
@@ -102,7 +104,7 @@ export const getUserByID =async(req,res)=>{
       return res.status(404).json({ mensaje: 'Usuario no encontrado' });
     }
 
-    return res.status(200).json(userData);
+    return res.status(200).json({userData, id});
   } catch (error) {
     console.error('Error al procesar la solicitud:', error.message);
     res.status(500).json({ mensaje: 'Error interno del servidor' });
