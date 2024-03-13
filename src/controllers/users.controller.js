@@ -13,8 +13,11 @@ import {
 
 export const createUser = async (req, res) => {
   const { id, name,rol } = req.body;
-  console.log(id, name,rol);
+  
   try {
+    if (!id || !name || !rol) {
+      return res.status(400).json({ mensaje: 'Faltan campos obligatorios' });
+    }
     const usersRef = ref(db, `usuarios/${id}`);
 
     // Verifica si ya existe un usuario con el mismo ID
@@ -28,7 +31,7 @@ export const createUser = async (req, res) => {
 
         nombre: name,
         compras: [],
-        alquileres: [],
+        alquileres: {},
         rol:rol
     
     });

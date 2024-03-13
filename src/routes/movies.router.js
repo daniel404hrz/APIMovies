@@ -7,6 +7,6 @@ router.post("/movies",authMiddleware,postMovie)
 router.get("/movies", getMovies)
 router.get("/movies/:id" ,getMovieByID)
 // darle like, quitar like
-router.put("/movies_like/:id/:true", authMiddleware, putLike)
+router.put("/movies_like/:movieId/:true/:userId", authMiddleware, putLike)
 router.delete("/movies/:id",authMiddleware,delMovies)
 export default router;

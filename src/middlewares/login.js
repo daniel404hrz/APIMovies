@@ -12,7 +12,7 @@ const verifyToken = async (tokenJwt) => {
 };
 
 export const authLogin = async (req, res, next) => {
-    console.log(req.cookies.localSession);
+   
     try {
       if (!req.cookies || !req.cookies.localSession) {
         // No hay cookie, solo llama a next

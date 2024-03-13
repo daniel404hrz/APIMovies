@@ -31,7 +31,7 @@ export const auth = async (req, res) => {
         res.status(400).json('Falta datos');
         return;
       }
-      console.log("hola");
+      
       const userRef = ref(db, `usuarios/${id}`);
       
       const userSnapshot = await get(userRef);
@@ -47,7 +47,7 @@ export const auth = async (req, res) => {
   
       res.cookie('localSession', token, {
         expires: new Date(Date.now() + expirationTime),
-        httpOnly: true,
+        httpOnly: false,
       });
   
       res.json({

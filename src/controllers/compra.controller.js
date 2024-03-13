@@ -1,20 +1,27 @@
 import { db } from "../db.js";
-import {
-  getDatabase,
-  ref,
-  push,
-  set,
-  get,
-  update,
-  remove,
-} from "firebase/database";
+import { ref, push, set, get, update, remove } from "firebase/database";
 
 export const createPurchases = async (req, res) => {
-  const { movieID, userID } = req.body;
+  const { movieID, userID, items } = req.body;
+
+  if (items <= 0) {
+    return res
+      .status(400)
+      .json({ mensaje: "El número de items debe ser mayor que 0." });
+  }
 
   try {
     const userRef = ref(db, `usuarios/${userID}`);
     const movieRef = ref(db, `peliculas/${movieID}`);
+
+    // Obtén el stock actual de la película
+    const movieSnapshot = await get(movieRef);
+    const currentStock = movieSnapshot.val().stock || 0;
+
+    // Verifica si hay suficiente stock para la compra
+    if (currentStock < items) {
+      return res.status(400).json({ mensaje: "No hay suficiente stock." });
+    }
 
     // Utiliza push para generar una clave única para cada compra
     const compraRef = push(ref(db, "compras"));
@@ -25,15 +32,26 @@ export const createPurchases = async (req, res) => {
       user: userRef.key, // Guarda solo el ID del usuario
       movie: movieRef.key, // Guarda solo el ID de la película
       date: new Date().toISOString().split("T")[0],
+      items: items,
     });
-    const movieSnapshot = await get(movieRef);
+
+    // Actualiza el array de compras en el nodo del usuario
     const movieDetails = {
-        movieID: movieSnapshot.key,
-        title: movieSnapshot.val().titulo
-      };
-  
-      // Actualiza el array de compras en el nodo del usuario
-      await set(userRef, { compras: { [compraId]: movieDetails } }, { merge: true });
+      id: movieSnapshot.key,
+      title: movieSnapshot.val().titulo,
+      imagen: movieSnapshot.val().imagen,
+      likes: movieSnapshot.val().likes,
+
+      items,
+    };
+    const userSnapshot = await get(userRef);
+    const compras = userSnapshot.val().compras || [];
+    compras.push(movieDetails);
+    await update(userRef, { compras: compras });
+
+    // Ajusta el stock de la película
+    const updatedStock = currentStock - items;
+    await update(movieRef, { stock: updatedStock });
 
     console.log("Compra registrada exitosamente con ID:", compraId);
     res
@@ -41,9 +59,10 @@ export const createPurchases = async (req, res) => {
       .json({ mensaje: "Compra registrada exitosamente", compraId });
   } catch (error) {
     console.error("Error al registrar la compra:", error.message);
-    res.status(500).json({ mensaje: "Error al registrar la compra" });
+    res.status(500).json({ mensaje: error.message });
   }
 };
+
 export const getPurchases = async (req, res) => {
   try {
     const comprasRef = ref(db, "compras");

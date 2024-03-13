@@ -1,11 +1,4 @@
-import {
-  ref,
-  push,
-  set,
-  get,
-  update,
-  remove,
-} from "firebase/database";
+import { ref, push, set, get, update, remove } from "firebase/database";
 import { db } from "../db.js";
 
 export const getMovieByID = async (req, res) => {
@@ -37,24 +30,29 @@ export const postMovie = async (req, res) => {
       disponibilidad,
     } = req.body;
 
-    // Validaciones de campos requeridos
+    // Validaciones de campos requeridos y tipos de datos
     if (
       !titulo ||
       !imagen ||
-      !stock ||
-      !precioAlquiler ||
-      !precioVenta ||
+      isNaN(stock) ||
+      isNaN(precioAlquiler) ||
+      isNaN(precioVenta) ||
+      typeof disponibilidad !== "boolean" ||
       !descripcion
     ) {
       return res
         .status(400)
-        .json({ mensaje: "Todos los campos son obligatorios." });
+        .json({
+          mensaje:
+            "Todos los campos son obligatorios y deben tener el formato correcto.",
+        });
     }
 
     // Guarda la película en la base de datos
     const peliculasRef = ref(db, "peliculas");
     const nuevaPeliculaRef = push(peliculasRef);
-    await set(nuevaPeliculaRef, {
+
+    const nuevaPeliculaData = {
       titulo,
       descripcion,
       imagen,
@@ -63,12 +61,22 @@ export const postMovie = async (req, res) => {
       precioVenta,
       disponibilidad,
       likes: 0,
-    });
+      userLikes: [0],
+    };
+
+    // Logs para depuración
+    console.log("Nueva película a crear:", nuevaPeliculaData);
+
+    await set(nuevaPeliculaRef, nuevaPeliculaData);
 
     res.status(201).json({ mensaje: "Película creada exitosamente" });
   } catch (error) {
     console.error("Error al crear la película:", error);
-    res.status(500).json({ mensaje: "Error al crear la película" });
+
+    // Envía una respuesta más detallada al cliente
+    res
+      .status(500)
+      .json({ mensaje: "Error al crear la película", error: error.message });
   }
 };
 export const getMovies = async (req, res) => {
@@ -91,50 +99,63 @@ export const getMovies = async (req, res) => {
     });
 };
 export const putLike = async (req, res) => {
-  const isLike = req.params.true;
-  const movieId = req.params.id;
+  const isLike = req.params.true === "true"; // Convierte el parámetro a booleano
+  const movieId = req.params.movieId;
+  const userId = req.params.userId;
+
   try {
     const movieRef = ref(db, `peliculas/${movieId}`);
-
-    // Datos que deseas actualizar (reemplaza con tus nuevos datos)
     const snapshot = await get(movieRef);
+
     if (snapshot.exists()) {
       const currentLikes = snapshot.val().likes || 0;
 
-      // Incrementa el valor de 'likes' en 1
+      // Actualiza el array de usuarios que le han dado like
+      let updatedUserLikes = snapshot.val().userLikes || [0];
+
+      // Verifica si el usuario ya ha dado like
+      const userHasLiked = updatedUserLikes.includes(userId);
+
+      // Agrega o elimina el usuario actual del array
+      if (isLike && !userHasLiked) {
+        updatedUserLikes.push(userId);
+      } else if (!isLike && userHasLiked) {
+        updatedUserLikes = updatedUserLikes.filter(
+          (existingUserId) => existingUserId !== userId
+        );
+      }
+
       const nuevosDatos = {
-        likes: isLike == "true" ? currentLikes + 1 : currentLikes - 1,
+        likes: isLike && !userHasLiked
+          ? currentLikes + 1
+          : !isLike && userHasLiked
+          ? currentLikes - 1
+          : currentLikes,
+        userLikes: updatedUserLikes,
         // ... otros campos que desees actualizar
       };
 
-      // Actualiza los datos en la referencia específica
-      await update(movieRef, nuevosDatos);
-      console.log("Elemento modificado exitosamente.");
-      res
-        .status(200)
-        .json(
-          isLike == "true"
-            ? { mensaje: "Like agregado exitosamente." }
-            : { mensaje: "Like eliminado exitosamente." }
-        );
+      // Modifica la lógica para asegurar que la propiedad userLikes existe
+      if (!snapshot.val().userLikes) {
+        nuevosDatos.userLikes = updatedUserLikes;
+      }
 
-      update(movieRef, nuevosDatos)
-        .then(() => {
-          console.log("Elemento modificado exitosamente.");
-        })
-        .catch((error) => {
-          console.error("Error al modificar el elemento:", error.message);
-        });
+      await update(movieRef, nuevosDatos);
+
+      console.log("Elemento modificado exitosamente.");
+      res.status(200).json({
+        mensaje: isLike
+          ? "Like agregado exitosamente."
+          : "Like eliminado exitosamente.",
+      });
     } else {
       console.error("La película no existe.", movieId);
       res.status(404).json({ mensaje: "La película no existe." });
     }
   } catch (error) {
-    console.error("La película no existe.", movieId);
-    res.status(404).json({ mensaje: error.message });
+    console.error("Error al modificar la película:", error.message);
+    res.status(500).json({ mensaje: "Error al modificar la película." });
   }
-
-  // Actualiza los datos en la referencia específica
 };
 export const delMovies = async (req, res) => {
   const { id } = req.params;
@@ -142,11 +163,9 @@ export const delMovies = async (req, res) => {
   const postRef = ref(db, `/peliculas/${id}`);
 
   try {
-
     const snapshot = await get(postRef);
 
     if (snapshot.exists()) {
-    
       remove(postRef);
 
       res.status(200).json({ mensaje: "Post eliminado exitosamente." });

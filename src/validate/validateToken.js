@@ -5,8 +5,7 @@ const { JWT_SECRET } = process.env;
 export const validateToken = async (req, res, next) => {
   try {
     const accesToken = req.cookies.localSession;
-    console.log( accesToken
-    );
+    
    
     if (!accesToken) res.status(403).json({ error: "Access denied" });
     else
